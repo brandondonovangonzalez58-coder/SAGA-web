@@ -1,9 +1,9 @@
-//modulo para docentes
+// Modulo para docentes
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import DataTable from '../components/DataTable';
 import api from '../api/axios';
-import { Plus, X, Edit2, Trash2, Search, UserCheck, Hash, Briefcase } from 'lucide-react';
+import { Plus, X, Edit2, Trash2, Search, UserCheck, Hash, Briefcase, Mail, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { confirmDelete, showSuccess, showError } from '../utils/alerts';
 
@@ -15,10 +15,14 @@ export default function Docentes() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   
+  // Agregamos nombre, apellidos y correo para poder editarlos
   const [formData, setFormData] = useState({ 
     id_usuario: '', 
     numero_empleado: '', 
-    especialidad: '' 
+    especialidad: '',
+    nombre: '',
+    apellidos: '',
+    correo: ''
   });
 
   const fetchDocentes = async (termino = '') => {
@@ -42,18 +46,27 @@ export default function Docentes() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const data = { 
+      const dataDocente = { 
         id_usuario: parseInt(formData.id_usuario), 
         numero_empleado: formData.numero_empleado, 
         especialidad: formData.especialidad 
       };
       
-      if (editingId) await api.put(`/docentes/${editingId}`, data);
-      else await api.post('/docentes/', data);
+      if (editingId) {
+        await api.put(`/docentes/${editingId}`, dataDocente);
+        
+        // Actualizamos también los datos del usuario
+        await api.put(`/usuarios/${formData.id_usuario}`, {
+          nombre: formData.nombre,
+          apellidos: formData.apellidos,
+          correo: formData.correo
+        });
+      } else {
+        await api.post('/docentes/', dataDocente);
+      }
       
       setIsModalOpen(false);
-      setFormData({ id_usuario: '', numero_empleado: '', especialidad: '' });
-      setEditingId(null);
+      resetForm();
       fetchDocentes(buscar);
       
       showSuccess(editingId ? 'Docente actualizado' : 'Docente registrado correctamente');
@@ -79,17 +92,49 @@ export default function Docentes() {
     setFormData({ 
       id_usuario: docente.id_usuario, 
       numero_empleado: docente.numero_empleado, 
-      especialidad: docente.especialidad || '' 
+      especialidad: docente.especialidad || '',
+      nombre: docente.usuario?.nombre || '',
+      apellidos: docente.usuario?.apellidos || '',
+      correo: docente.usuario?.correo || ''
     });
     setEditingId(docente.id_docente);
     setIsModalOpen(true);
   };
 
+  const resetForm = () => {
+    setFormData({ 
+      id_usuario: '', 
+      numero_empleado: '', 
+      especialidad: '',
+      nombre: '',
+      apellidos: '',
+      correo: ''
+    });
+    setEditingId(null);
+  };
+
+  // COLUMNAS CORREGIDAS (Muestran el nombre real en lugar del ID)
   const columns = [
-    { header: 'ID', accessor: 'id_docente' },
-    { header: 'ID Usuario', accessor: 'id_usuario' },
+    { 
+      header: 'Docente', 
+      accessor: 'usuario', 
+      render: (row) => (
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-400 font-semibold text-xs">
+            {row.usuario?.nombre?.charAt(0)}{row.usuario?.apellidos?.charAt(0)}
+          </div>
+          <span className="font-medium text-white">
+            {row.usuario ? `${row.usuario.nombre} ${row.usuario.apellidos}` : 'Sin nombre'}
+          </span>
+        </div>
+      )
+    },
     { header: 'No. Empleado', accessor: 'numero_empleado' },
     { header: 'Especialidad', accessor: 'especialidad', render: (r) => r.especialidad || '-' },
+    { 
+      header: 'Correo', 
+      render: (row) => row.usuario?.correo || 'N/A' 
+    },
     { 
       header: 'Acciones', 
       render: (row) => (
@@ -117,13 +162,13 @@ export default function Docentes() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#737373]" size={18} />
             <input 
-              type="text" placeholder="Buscar..." value={buscar} onChange={(e) => setBuscar(e.target.value)}
+              type="text" placeholder="Buscar por nombre o empleado..." value={buscar} onChange={(e) => setBuscar(e.target.value)}
               className="bg-white/[0.03] border border-white/[0.1] rounded-xl py-2.5 pl-10 pr-4 text-white placeholder-[#737373] text-sm focus:outline-none focus:border-white/30 shadow-inner w-64"
             />
           </div>
           <motion.button 
             whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-            onClick={() => { setEditingId(null); setFormData({ id_usuario: '', numero_empleado: '', especialidad: '' }); setIsModalOpen(true); }} 
+            onClick={() => { resetForm(); setIsModalOpen(true); }} 
             className="flex items-center gap-2 bg-[#3b82f6] hover:bg-[#2563eb] text-white px-6 py-2.5 rounded-xl transition-all shadow-[0_0_20px_rgba(59,130,246,0.4)] font-medium"
           >
             <Plus size={18} /> Nuevo Docente
@@ -138,7 +183,7 @@ export default function Docentes() {
       <AnimatePresence>
         {isModalOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="bg-white/[0.02] backdrop-blur-[30px] border border-white/20 p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl">
+            <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="bg-white/[0.02] backdrop-blur-[30px] border border-white/20 p-8 rounded-[2.5rem] w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                   <UserCheck className="text-[#3b82f6]" /> {editingId ? 'Editar Docente' : 'Nuevo Docente'}
@@ -147,9 +192,29 @@ export default function Docentes() {
               </div>
               
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Campos del Usuario (Solo se muestran al editar) */}
+                {editingId && (
+                  <>
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <label className="flex items-center gap-2 text-[13px] font-medium text-[#d4d4d4] mb-2"><User size={14}/> Nombre(s)</label>
+                        <input type="text" required value={formData.nombre} onChange={(e) => setFormData({...formData, nombre: e.target.value})} className="w-full bg-white/[0.03] border border-white/[0.1] rounded-xl py-3 px-4 text-white focus:outline-none" />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-[13px] font-medium text-[#d4d4d4] mb-2">Apellidos</label>
+                        <input type="text" required value={formData.apellidos} onChange={(e) => setFormData({...formData, apellidos: e.target.value})} className="w-full bg-white/[0.03] border border-white/[0.1] rounded-xl py-3 px-4 text-white focus:outline-none" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="flex items-center gap-2 text-[13px] font-medium text-[#d4d4d4] mb-2"><Mail size={14}/> Correo</label>
+                      <input type="email" required value={formData.correo} onChange={(e) => setFormData({...formData, correo: e.target.value})} className="w-full bg-white/[0.03] border border-white/[0.1] rounded-xl py-3 px-4 text-white focus:outline-none" />
+                    </div>
+                  </>
+                )}
+
                 <div>
                   <label className="block text-[13px] font-medium text-[#d4d4d4] mb-2">ID del Usuario (ID de login)</label>
-                  <input type="number" required value={formData.id_usuario} onChange={(e) => setFormData({...formData, id_usuario: e.target.value})} className="w-full bg-white/[0.03] border border-white/[0.1] rounded-xl py-3 px-4 text-white focus:outline-none" />
+                  <input type="number" required value={formData.id_usuario} onChange={(e) => setFormData({...formData, id_usuario: e.target.value})} className="w-full bg-white/[0.03] border border-white/[0.1] rounded-xl py-3 px-4 text-white focus:outline-none" disabled={editingId !== null} />
                 </div>
                 <div>
                   <label className="flex items-center gap-2 text-[13px] font-medium text-[#d4d4d4] mb-2"><Hash size={14}/> Número de Empleado</label>
@@ -160,7 +225,7 @@ export default function Docentes() {
                   <input type="text" value={formData.especialidad} onChange={(e) => setFormData({...formData, especialidad: e.target.value})} className="w-full bg-white/[0.03] border border-white/[0.1] rounded-xl py-3 px-4 text-white focus:outline-none" />
                 </div>
                 <button type="submit" className="w-full bg-[#3b82f6] text-white font-medium py-3.5 rounded-xl shadow-lg mt-4">
-                  Guardar Docente
+                  {editingId ? 'Actualizar Docente' : 'Guardar Docente'}
                 </button>
               </form>
             </motion.div>
