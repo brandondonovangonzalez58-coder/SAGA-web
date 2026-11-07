@@ -14,7 +14,6 @@ export default function Estudiantes() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   
-  // Agregamos nombre, apellidos, correo y matrícula para poder editarlos
   const [formData, setFormData] = useState({ 
     id_usuario: '', 
     id_grupo: '', 
@@ -46,7 +45,6 @@ export default function Estudiantes() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // 1. Actualizamos los datos del estudiante
       const dataEstudiante = {
         id_usuario: parseInt(formData.id_usuario),
         id_grupo: parseInt(formData.id_grupo),
@@ -56,7 +54,6 @@ export default function Estudiantes() {
       if (editingId) {
         await api.put(`/estudiantes/${editingId}`, dataEstudiante);
         
-        // 2. Si estamos editando, actualizamos también los datos del usuario
         await api.put(`/usuarios/${formData.id_usuario}`, {
           nombre: formData.nombre,
           apellidos: formData.apellidos,
@@ -119,7 +116,6 @@ export default function Estudiantes() {
     setEditingId(null);
   };
 
-  // COLUMNAS CORREGIDAS (Muestran el nombre real en lugar del ID)
   const columns = [
     { 
       header: 'Alumno', 
@@ -143,7 +139,16 @@ export default function Estudiantes() {
       header: 'Correo', 
       render: (row) => row.usuario?.correo || 'N/A' 
     },
-    { header: 'ID Grupo', accessor: 'id_grupo' },
+    // 🚨 AQUÍ ESTÁ EL CAMBIO: Ahora muestra el nombre del grupo
+    { 
+      header: 'Grupo', 
+      accessor: 'grupo', 
+      render: (row) => (
+        <span className="px-3 py-1 bg-blue-500/10 text-blue-400 rounded-lg text-sm font-medium border border-blue-500/20">
+          {row.grupo ? row.grupo.nombre : 'Sin grupo'}
+        </span>
+      )
+    },
     { 
       header: 'Fecha Ingreso', 
       accessor: 'fecha_ingreso' 
